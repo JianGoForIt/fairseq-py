@@ -19,6 +19,26 @@ from fairseq.criterions import FairseqCriterion
 from fairseq.multiprocessing_event_loop import MultiprocessingEventLoop, Future
 from fairseq.nag import NAG
 
+# Swap in YF
+import sys
+sys.path.append("/lfs/1/zjian/fairseq-py/YellowFin_Pytorch/tuner_utils")
+from yellowfin import YFOptimizer
+
+class YFScheduler(object):
+    def __init__(self, optimizer, args, step_when_increase=True):
+        self._metric_list = []
+        self._optimizer = optimizer
+        self._step_when_increase = step_when_increase
+        self._args = args
+
+    def step(self, metric, epoch):
+        self._metric_list.append(metric)
+        if len(self._metric_list) >= 2 and self._args.use_YF_lr_schedule:
+            if self._step_when_increase and self._metric_list[-1] >= self._metric_list[-2]:
+                self._optimizer._lr_factor *= 0.1
+            elif not self._step_when_increase and self._metric_list[-1] <= self._metric_list[-2]:
+                self._optimizer._lr_factor *= 0.1
+            print("test inside ", self._metric_list[-1], self._metric_list[-2], self._optimizer._lr_factor)
 
 class MultiprocessingTrainer(MultiprocessingEventLoop):
     """Main class for multi-GPU training.
@@ -67,17 +87,25 @@ class MultiprocessingTrainer(MultiprocessingEventLoop):
         # copy model to current device
         self.model = model.cuda()
 
-        # initialize optimizer
-        self.optimizer = NAG(self.model.parameters(), lr=self.args.lr,
-                             momentum=self.args.momentum,
-                             weight_decay=self.args.weight_decay)
+        if self.args.use_YF:
+    	    # Swap in YellowFIn
+            self.optimizer = YFOptimizer(self.model.parameters(), weight_decay=self.args.weight_decay)
+        else:
+            # initialize optimizer
+            self.optimizer = NAG(self.model.parameters(), lr=self.args.lr,
+                            momentum=self.args.momentum,
+                            weight_decay=self.args.weight_decay)
+
         self.flat_grads = None
 
         # initialize LR scheduler
         self.lr_scheduler = self._build_lr_scheduler()
 
     def _build_lr_scheduler(self):
-        if self.args.force_anneal > 0:
+        if self.args.use_YF:
+            print("use YF scheduler")
+            lr_scheduler = YFScheduler(self.optimizer, self.args)
+        elif self.args.force_anneal > 0:
             def anneal(e):
                 if e < self.args.force_anneal:
                     return 1
@@ -97,6 +125,14 @@ class MultiprocessingTrainer(MultiprocessingEventLoop):
 
     def _async_get_model(self, rank, device_id):
         return self.model
+
+    def get_optimizer(self):
+        """Get one of the model replicas."""
+        # just return the first model, since all replicas are the same
+        return self.call_async(0, '_async_get_optimizer').gen()
+
+    def _async_get_optimizer(self, rank, device_id):
+        return self.optimizer
 
     def save_checkpoint(self, args, epoch, batch_offset, val_loss=None):
         """Save a checkpoint for the current model."""
@@ -226,7 +262,20 @@ class MultiprocessingTrainer(MultiprocessingEventLoop):
         return self.call_async(0, '_async_get_lr').gen()
 
     def _async_get_lr(self, rank, device_id):
-        return self.optimizer.param_groups[0]['lr']
+        if self.args.use_YF:
+            return self.optimizer._optimizer.param_groups[0]['lr']
+        else:
+            return self.optimizer.param_groups[0]['lr']
+
+    def get_lr_factor(self):
+        """Get the current learning rate."""
+        return self.call_async(0, '_async_get_lr_factor').gen()
+
+    def _async_get_lr_factor(self, rank, device_id):
+        if self.args.use_YF:
+            return self.optimizer._lr_factor
+        else:
+            return 1.0
 
     def lr_step(self, val_loss=None, epoch=None):
         """Adjust the learning rate depending on the validation loss."""
@@ -242,7 +291,10 @@ class MultiprocessingTrainer(MultiprocessingEventLoop):
             self.lr_scheduler.step(epoch)
         else:
             self.lr_scheduler.step(val_loss, epoch)
-        return self.optimizer.param_groups[0]['lr']
+        if self.args.use_YF:
+            return self.optimizer._optimizer.param_groups[0]['lr']
+        else:
+            return self.optimizer.param_groups[0]['lr']
 
     def _scatter_samples(self, samples, volatile=False, replace_empty_samples=False):
         """Split and distribute a sample across GPUs."""

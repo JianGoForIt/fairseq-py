@@ -10,6 +10,7 @@ import collections
 import os
 import torch
 import math
+import numpy as np
 
 from fairseq import bleu, data, options, utils
 from fairseq.meters import AverageMeter, StopwatchMeter, TimeMeter
@@ -17,6 +18,12 @@ from fairseq.multiprocessing_trainer import MultiprocessingTrainer
 from fairseq.progress_bar import progress_bar
 from fairseq.sequence_generator import SequenceGenerator
 
+loss_list = []
+h_max_list = []
+h_min_list = []
+lr_list = []
+mu_list = []
+val_loss_list = []
 
 def main():
     parser = options.get_parser('Trainer')
@@ -70,27 +77,53 @@ def main():
     trainer = MultiprocessingTrainer(args, model)
 
     # Load the latest checkpoint if one is available
-    epoch, batch_offset = trainer.load_checkpoint(os.path.join(args.save_dir, args.restore_file))
-
+    if 1: #args.use_YF:
+      epoch = 1
+      batch_offset = 0
+    else:
+    	epoch, batch_offset = trainer.load_checkpoint(os.path.join(args.save_dir, args.restore_file))
     # Train until the learning rate gets too small
     val_loss = None
     max_epoch = args.max_epoch or math.inf
     lr = trainer.get_lr()
     train_meter = StopwatchMeter()
     train_meter.start()
-    while lr > args.min_lr and epoch <= max_epoch:
+    while epoch <= max_epoch:
+    #while lr > args.min_lr and epoch <= max_epoch:
         # train for one epoch
         train(args, epoch, batch_offset, trainer, criterion, dataset, num_gpus)
 
         # evaluate on validate set
+        val_loss_list.append(0.0)
         for k, subset in enumerate(args.valid_subset.split(',')):
             val_loss = validate(args, epoch, trainer, criterion, dataset, subset, num_gpus)
+            
+            print("chck type ", float(val_loss))    
+            val_loss_list[-1] += val_loss
             if k == 0:
                 if not args.no_save:
                     # save checkpoint
-                    trainer.save_checkpoint(args, epoch, 0, val_loss)
+                    if not args.use_YF:
+                      trainer.save_checkpoint(args, epoch, 0, val_loss)
                 # only use first validation loss to update the learning schedule
                 lr = trainer.lr_step(val_loss, epoch)
+        val_loss_list[-1] /= float(len(args.valid_subset.split(',') ) )
+
+	# DEBUG
+        print("print saving list", loss_list)      
+
+        with open(args.save_dir + "/loss.txt", "wb") as f:
+            np.savetxt(f, np.array(loss_list))
+        with open(args.save_dir + "/h_max.txt", "wb") as f:
+            np.savetxt(f, np.array(h_max_list))
+        with open(args.save_dir + "/h_min.txt", "wb") as f:
+            np.savetxt(f, np.array(h_min_list))
+        with open(args.save_dir + "/lr_list.txt", "wb") as f:
+            np.savetxt(f, np.array(lr_list))
+        with open(args.save_dir + "/mu_list.txt", "wb") as f:
+            np.savetxt(f, np.array(mu_list))
+        with open(args.save_dir + "/val_loss.txt", "wb") as f:
+            np.savetxt(f, np.array(val_loss_list))
 
         epoch += 1
         batch_offset = 0
@@ -121,7 +154,6 @@ def train(args, epoch, batch_offset, trainer, criterion, dataset, num_gpus):
     with progress_bar(itr, desc, leave=False) as t:
         for i, sample in data.skip_group_enumerator(t, num_gpus, batch_offset):
             loss, grad_norm = trainer.train_step(sample, criterion)
-
             ntokens = sum(s['ntokens'] for s in sample)
             src_size = sum(s['src_tokens'].size(0) for s in sample)
             loss_meter.update(loss, ntokens)
@@ -146,6 +178,12 @@ def train(args, epoch, batch_offset, trainer, criterion, dataset, num_gpus):
                 wps_meter.reset()
             if args.save_interval > 0 and (i + 1) % args.save_interval == 0:
                 trainer.save_checkpoint(args, epoch, i + 1)
+            loss_list.append(loss)
+            if args.use_YF:
+              h_max_list.append(trainer.get_optimizer()._h_max)
+              h_min_list.append(trainer.get_optimizer()._h_min)
+              lr_list.append(trainer.get_optimizer()._lr_t)
+              mu_list.append(trainer.get_optimizer()._mu_t)
 
         fmt = desc + ' | train loss {:2.2f} | train ppl {:3.2f}'
         fmt += ' | s/checkpoint {:7d} | words/s {:6d} | words/batch {:6d}'
@@ -175,7 +213,6 @@ def validate(args, epoch, trainer, criterion, dataset, subset, ngpus):
             loss = trainer.valid_step(sample, criterion)
             loss_meter.update(loss, ntokens)
             t.set_postfix(loss='{:.2f}'.format(loss_meter.avg), refresh=False)
-
         val_loss = loss_meter.avg
         t.write(desc + ' | valid loss {:2.2f} | valid ppl {:3.2f}'
                 .format(val_loss, math.pow(2, val_loss)))
