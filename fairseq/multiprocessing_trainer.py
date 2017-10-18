@@ -18,6 +18,7 @@ from fairseq import nccl, utils
 from fairseq.criterions import FairseqCriterion
 from fairseq.multiprocessing_event_loop import MultiprocessingEventLoop, Future
 from fairseq.nag import NAG
+from torch.optim import Adam
 
 # Swap in YF
 import sys
@@ -87,9 +88,13 @@ class MultiprocessingTrainer(MultiprocessingEventLoop):
         # copy model to current device
         self.model = model.cuda()
 
+        print("use yellowfin ", self.args.use_YF)
         if self.args.use_YF:
     	    # Swap in YellowFIn
             self.optimizer = YFOptimizer(self.model.parameters(), weight_decay=self.args.weight_decay)
+        elif self.args.use_Adam:
+            # Swap in Adam
+            self.optimizer = Adam(self.model.parameters(), weight_decay=self.args.weight_decay)
         else:
             # initialize optimizer
             self.optimizer = NAG(self.model.parameters(), lr=self.args.lr,
@@ -104,6 +109,9 @@ class MultiprocessingTrainer(MultiprocessingEventLoop):
     def _build_lr_scheduler(self):
         if self.args.use_YF:
             print("use YF scheduler")
+            lr_scheduler = YFScheduler(self.optimizer, self.args)
+        elif self.args.use_Adam:
+            print("use YF scheduler for Adam")
             lr_scheduler = YFScheduler(self.optimizer, self.args)
         elif self.args.force_anneal > 0:
             def anneal(e):
