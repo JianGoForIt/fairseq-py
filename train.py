@@ -103,14 +103,14 @@ def main():
             if k == 0:
                 if not args.no_save:
                     # save checkpoint
-                    if not args.use_YF:
-                      trainer.save_checkpoint(args, epoch, 0, val_loss)
+                    # if not args.use_YF:
+                    trainer.save_checkpoint(args, epoch, 0, val_loss)
                 # only use first validation loss to update the learning schedule
                 lr = trainer.lr_step(val_loss, epoch)
         val_loss_list[-1] /= float(len(args.valid_subset.split(',') ) )
 
 	# DEBUG
-        print("print saving list", loss_list)      
+        # print("print saving list", loss_list)      
 
         with open(args.save_dir + "/loss.txt", "wb") as f:
             np.savetxt(f, np.array(loss_list))
