@@ -31,9 +31,12 @@ class YFScheduler(object):
         self._optimizer = optimizer
         self._step_when_increase = step_when_increase
         self._args = args
+        self.best = 10000000.0
 
     def step(self, metric, epoch):
         self._metric_list.append(metric)
+        if metric <= self.best:
+            self.best = metric
         if len(self._metric_list) >= 2 and self._args.use_YF_lr_schedule:
             if self._step_when_increase and self._metric_list[-1] >= self._metric_list[-2]:
                 self._optimizer._lr_factor *= 0.1
@@ -92,6 +95,8 @@ class MultiprocessingTrainer(MultiprocessingEventLoop):
         if self.args.use_YF:
     	    # Swap in YellowFIn
             self.optimizer = YFOptimizer(self.model.parameters(), weight_decay=self.args.weight_decay)
+            self.optimizer.set_lr_factor(1.0)
+            print("self.optimizer lr factor ", self.optimizer._lr_factor)
         elif self.args.use_Adam:
             # Swap in Adam
             self.optimizer = Adam(self.model.parameters(), weight_decay=self.args.weight_decay)
