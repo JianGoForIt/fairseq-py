@@ -60,6 +60,7 @@ def add_optimization_args(parser):
                        help='clip threshold of gradients')
     group.add_argument('--weight-decay', '--wd', default=0.0, type=float, metavar='WD',
                        help='weight decay')
+    group.add_argument('--lr-factor', default=1.0, type=float, help="lr factor for YF")
     group.add_argument('--sample-without-replacement', default=0, type=int, metavar='N',
                        help='If bigger than 0, use that number of mini-batches for each epoch,'
                             ' where each sample is drawn randomly with replacement from the'

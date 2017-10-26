@@ -95,7 +95,7 @@ class MultiprocessingTrainer(MultiprocessingEventLoop):
         if self.args.use_YF:
     	    # Swap in YellowFIn
             self.optimizer = YFOptimizer(self.model.parameters(), weight_decay=self.args.weight_decay)
-            self.optimizer.set_lr_factor(1.0)
+            self.optimizer.set_lr_factor(args.lr_factor)
             print("self.optimizer lr factor ", self.optimizer._lr_factor)
         elif self.args.use_Adam:
             # Swap in Adam
