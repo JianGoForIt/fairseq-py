@@ -179,11 +179,11 @@ def train(args, epoch, batch_offset, trainer, criterion, dataset, num_gpus):
             if args.save_interval > 0 and (i + 1) % args.save_interval == 0:
                 trainer.save_checkpoint(args, epoch, i + 1)
             loss_list.append(loss)
-            if args.use_YF:
-              h_max_list.append(trainer.get_optimizer()._h_max)
-              h_min_list.append(trainer.get_optimizer()._h_min)
-              lr_list.append(trainer.get_optimizer()._lr_t)
-              mu_list.append(trainer.get_optimizer()._mu_t)
+            #if args.use_YF:
+            #  h_max_list.append(trainer.get_optimizer()._h_max)
+            #  h_min_list.append(trainer.get_optimizer()._h_min)
+            #  lr_list.append(trainer.get_optimizer()._lr_t)
+            #  mu_list.append(trainer.get_optimizer()._mu_t)
 
         fmt = desc + ' | train loss {:2.2f} | train ppl {:3.2f}'
         fmt += ' | s/checkpoint {:7d} | words/s {:6d} | words/batch {:6d}'
