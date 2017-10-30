@@ -93,6 +93,9 @@ def main():
         # train for one epoch
         train(args, epoch, batch_offset, trainer, criterion, dataset, num_gpus)
 
+	# DEBUG
+        exit(0)
+
         # evaluate on validate set
         val_loss_list.append(0.0)
         for k, subset in enumerate(args.valid_subset.split(',')):
@@ -172,6 +175,11 @@ def train(args, epoch, batch_offset, trainer, criterion, dataset, num_gpus):
                 ('clip', '{:3.0f}%'.format(clip_meter.avg * 100)),
                 ('gnorm', '{:.4f}'.format(gnorm_meter.avg)),
             ]), refresh=False)
+
+            # DEBUG
+            if i == 100:
+              break
+
 
             if i == 0:
                 # ignore the first mini-batch in words-per-second calculation
