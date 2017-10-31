@@ -2,7 +2,7 @@ import numpy as np
 
 max_epoch=120
 
-YF_file = "/lfs/1/zjian/fairseq-py/YF_all_eval_final.log"
+YF_file = "YF_all_eval_final.log"
 
 with open(YF_file, "r") as f:
   content = f.readlines()
