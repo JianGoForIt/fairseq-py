@@ -90,10 +90,12 @@ def main():
     train_meter.start()
     while epoch <= max_epoch:
     #while lr > args.min_lr and epoch <= max_epoch:
+        # manual annealing of lr
+        print("start of epoch sanity check lr factor ", trainer.get_optimizer()._lr_factor)
         # train for one epoch
         train(args, epoch, batch_offset, trainer, criterion, dataset, num_gpus)
 
-        # evaluate on validate set
+        # evaluate on validate set`````
         val_loss_list.append(0.0)
         for k, subset in enumerate(args.valid_subset.split(',')):
             val_loss = validate(args, epoch, trainer, criterion, dataset, subset, num_gpus)
@@ -106,8 +108,16 @@ def main():
                     # if not args.use_YF:
                     trainer.save_checkpoint(args, epoch, 0, val_loss)
                 # only use first validation loss to update the learning schedule
-                lr = trainer.lr_step(val_loss, epoch)
+                #lr = trainer.lr_step(val_loss, epoch)
         val_loss_list[-1] /= float(len(args.valid_subset.split(',') ) )
+
+        if epoch > args.lr_drop_start_epoch:
+            #trainer.get_optimizer().set_lr_factor(trainer.get_optimizer().get_lr_factor() * args.lr_drop_fac)
+            trainer.lr_step(val_loss_list[-1], epoch)
+            print("lr factor dropped to epoch/factor", epoch, trainer.get_optimizer()._lr_factor)
+        # sanity check
+        print("end of epoch sanity check lr factor ", trainer.get_optimizer()._lr_factor)
+
 
 	# DEBUG
         # print("print saving list", loss_list)      
@@ -179,12 +189,12 @@ def train(args, epoch, batch_offset, trainer, criterion, dataset, num_gpus):
             if args.save_interval > 0 and (i + 1) % args.save_interval == 0:
                 trainer.save_checkpoint(args, epoch, i + 1)
             loss_list.append(loss)
-            #if args.use_YF:
-            #  h_max_list.append(trainer.get_optimizer()._h_max)
-            #  h_min_list.append(trainer.get_optimizer()._h_min)
-            #  lr_list.append(trainer.get_optimizer()._lr_t)
-            #  mu_list.append(trainer.get_optimizer()._mu_t)
-
+            if args.use_YF:
+              h_max_list.append(trainer.get_optimizer()._h_max)
+              h_min_list.append(trainer.get_optimizer()._h_min)
+              lr_list.append(trainer.get_optimizer()._lr_t)
+              mu_list.append(trainer.get_optimizer()._mu_t)
+            
         fmt = desc + ' | train loss {:2.2f} | train ppl {:3.2f}'
         fmt += ' | s/checkpoint {:7d} | words/s {:6d} | words/batch {:6d}'
         fmt += ' | bsz {:5d} | lr {:0.6f} | clip {:3.0f}% | gnorm {:.4f}'

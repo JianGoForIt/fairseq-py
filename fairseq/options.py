@@ -64,6 +64,8 @@ def add_optimization_args(parser):
                        help='If bigger than 0, use that number of mini-batches for each epoch,'
                             ' where each sample is drawn randomly with replacement from the'
                             ' dataset')
+    group.add_argument('--lr_drop_fac', default=1.0, type=float, help="rate for lr dropping")
+    group.add_argument('--lr_drop_start_epoch', default=30, type=int, help="first epoch to start drop learning rate")
     return group
 
 

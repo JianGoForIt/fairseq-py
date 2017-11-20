@@ -36,12 +36,13 @@ class YFScheduler(object):
         self._metric_list.append(metric)
         if metric <= self.best:
             self.best = metric
-        if len(self._metric_list) >= 2 and self._args.use_YF_lr_schedule:
-            if self._step_when_increase and self._metric_list[-1] >= self._metric_list[-2]:
-                self._optimizer._lr_factor *= 0.1
-            elif not self._step_when_increase and self._metric_list[-1] <= self._metric_list[-2]:
-                self._optimizer._lr_factor *= 0.1
-            print("test inside ", self._metric_list[-1], self._metric_list[-2], self._optimizer._lr_factor)
+        self._optimizer.set_lr_factor(self._optimizer.get_lr_factor() * self._args.lr_drop_fac)
+#        if len(self._metric_list) >= 2 and self._args.use_YF_lr_schedule:
+#            if self._step_when_increase and self._metric_list[-1] >= self._metric_list[-2]:
+#                self._optimizer._lr_factor *= 0.1
+#            elif not self._step_when_increase and self._metric_list[-1] <= self._metric_list[-2]:
+#                self._optimizer._lr_factor *= 0.1
+#            print("test inside ", self._metric_list[-1], self._metric_list[-2], self._optimizer._lr_factor)
 
 class MultiprocessingTrainer(MultiprocessingEventLoop):
     """Main class for multi-GPU training.
