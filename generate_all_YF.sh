@@ -1,8 +1,9 @@
-for i in {1..120}
+#for i in {60..180}
+for ((i=1;i<=180;i++));
 do 
   echo YF${i}
   python generate.py data-bin/iwslt14.tokenized.de-en.14000 \
-  --path checkpoints/YF_drop_fac_0.99_start_30/checkpoint${i}.pt \
+  --path checkpoints/YF_start_30_180_epoch_0.02_drop_at_110/checkpoint${i}.pt \
   --batch-size 128 --beam 5
 done
 

@@ -111,7 +111,11 @@ def main():
                 #lr = trainer.lr_step(val_loss, epoch)
         val_loss_list[-1] /= float(len(args.valid_subset.split(',') ) )
 
-        if epoch > args.lr_drop_start_epoch:
+
+        if epoch == args.lr_step_epoch:
+            trainer.lr_step(val_loss_list[-1], epoch)
+            print("lr factor steps to epoch/factor", epoch, trainer.get_optimizer()._lr_factor)
+        elif epoch > args.lr_drop_start_epoch:
             #trainer.get_optimizer().set_lr_factor(trainer.get_optimizer().get_lr_factor() * args.lr_drop_fac)
             trainer.lr_step(val_loss_list[-1], epoch)
             print("lr factor dropped to epoch/factor", epoch, trainer.get_optimizer()._lr_factor)

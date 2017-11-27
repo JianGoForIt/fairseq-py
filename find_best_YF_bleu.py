@@ -1,8 +1,8 @@
 import numpy as np
 
-max_epoch=120
+max_epoch=180
 
-YF_file = "YF_all_eval_final.log"
+YF_file = "YF_14000_all_eval_final_drop_0.975_180.log"
 
 with open(YF_file, "r") as f:
   content = f.readlines()
