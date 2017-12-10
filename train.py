@@ -106,7 +106,15 @@ def main():
                     # if not args.use_YF:
                     trainer.save_checkpoint(args, epoch, 0, val_loss)
                 # only use first validation loss to update the learning schedule
-                lr = trainer.lr_step(val_loss, epoch)
+                # TO RECOVER
+                # lr = trainer.lr_step(val_loss, epoch)
+                lr = trainer.get_lr()
+
+        # TO REOVER
+        if args.force_anneal > 0 and epoch == args.force_anneal:
+            print("checkpoint, force drop lr at ", epoch)
+            lr = trainer.lr_step(val_loss, epoch)
+
         val_loss_list[-1] /= float(len(args.valid_subset.split(',') ) )
 
 	# DEBUG
